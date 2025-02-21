@@ -8,7 +8,9 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"log"
+	"net/http"
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -32,6 +34,30 @@ type Hashtag struct {
 var postDB *mongo.Database
 var hashtagDB *mongo.Database
 
+func publishPostHandler(w http.ResponseWriter, r *http.Request) {
+	var post Post
+	err := json.NewDecoder(r.Body).Decode(&post)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	post.ID = primitive.NewObjectID()
+	post.CreatedAt = time.Now()
+
+	// create a colllection called posts inside postDB
+	collection := postDB.Collection("posts")
+	// insert the newly created post in the post colection
+	_, err = collection.InsertOne(context.TODO(), post)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(post)
+
+}
 func initDB() {
 	// specify client options
 	clientOptions := options.Client().ApplyURI("mongodb://localhost:27017")
@@ -52,14 +78,19 @@ func initDB() {
 	postDB = client.Database("postdb")
 	hashtagDB = client.Database("hashtagdb")
 
-
 	log.Println("Connected to MongoDB!")
 	log.Println("postDB:", postDB.Name())
 	log.Println("hashtagDB:", hashtagDB.Name())
 }
 
+
+// let's implement the post endpoint that will be triggered when the user publishes a post
+
 	
 func main() {
 	initDB()
+
+	http.HandleFunc("/posts/publish", publishPostHandler)
+	log.Fatal(http.ListenAndServe(":8080", nil))
 }
 
