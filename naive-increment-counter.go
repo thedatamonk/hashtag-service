@@ -58,6 +58,7 @@ func publishPostHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(post)
 
 }
+
 func initDB() {
 	// specify client options
 	clientOptions := options.Client().ApplyURI("mongodb://localhost:27017")
@@ -83,7 +84,9 @@ func initDB() {
 	log.Println("hashtagDB:", hashtagDB.Name())
 }
 
+func initKafka() {
 
+}
 // let's implement the post endpoint that will be triggered when the user publishes a post
 
 	
