@@ -17,7 +17,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"github.com/segmentio/kafka-go"
-	"github.com/thedatamonk/hashtag-service/workers"
+	"github.com/thedatamonk/hashtag-service/main/workers"
 )
 
 // specify schema of documents in posts and hashtag db
