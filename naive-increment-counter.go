@@ -35,6 +35,9 @@ type Hashtag struct {
 var postDB *mongo.Database
 var hashtagDB *mongo.Database
 
+
+// Approach 1: Naive Increment Counter
+// In this approach, we will increment the counter of each hashtag in the database
 func publishPostHandler(w http.ResponseWriter, r *http.Request) {
 	start := time.Now()
 
@@ -68,6 +71,34 @@ func publishPostHandler(w http.ResponseWriter, r *http.Request) {
 	log.Printf("publishPostHandler took %s", elapsed)
 
 }
+
+
+// Approach 2: we will locally keep a copy of the counters of each tag
+// and only after a certain time will write it to mongodb
+// a local copy can be kept in a hashmap
+
+
+
+// Approach 3: in this approach, we will create a deep copy of the hashmap
+// and then use this deep copy to write into the db
+// after creating a copy we will clear the original map and then start consuming messages again
+
+
+// Approach 4: we maintain two maps in this approach - active and passive
+// the messages are currently being written to the active map
+// when it's full, we will swap the maps and start writing to the passive map
+// ma, mp = mp, ma
+// So now mp(ma) is being used to update the DB
+// while ma(mp) is being used to collect the messages
+// this way we can avoid locking the map for a longer time
+
+
+
+// Approach 5: in this approach, we will have two brokers
+// one broker (partitioned by user_id) will be responsible for receiving posts and extracting hashtags per post
+// for each hashtag extracted from the post, send another event to  the other broker (parttitioned by hashtag)
+// the consumer of this broker will accumulate the number of posts per hashtag and then write it in bulk to mongodb
+
 
 func initDB() {
 	// specify client options
