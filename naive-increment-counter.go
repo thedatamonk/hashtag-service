@@ -1,5 +1,3 @@
-//	flow of the code
-//
 // user publishes a post (POST request to post DB) - So this is one endpoint that we need to implemenent
 // Now we also have to send a on_publish event to kafka queue
 // from this queue hashtag counter worker will be listening to this event and will compute the counts of all hashtags in the hashtag db
@@ -13,16 +11,17 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/segmentio/kafka-go"
+	"github.com/thedatamonk/hashtag-service/main/workers"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
-	"github.com/segmentio/kafka-go"
-	"github.com/thedatamonk/hashtag-service/main/workers"
 )
 
 // specify schema of documents in posts and hashtag db
 type Post struct {
 	ID		primitive.ObjectID	`bson:"_id,omitempty"`
+	UserName  string 			`bson:"username"`
 	Content		string			`bson:"content"`
 	CreatedAt	time.Time			`bson:"created_at"`
 }
@@ -102,14 +101,14 @@ func initKafka() {
 	kafkaWriter = &kafka.Writer{
 		Addr: kafka.TCP("localhost:9092"),
 		Topic: "on_post_publish",
-		Balancer: &kafka.LeastBytes{},
+		Balancer: &kafka.Hash{},
 	}
 }
 
 func publishPostEvent(post Post) {
 	start := time.Now()
 	msg := kafka.Message{
-		Key: []byte(post.ID.Hex()),
+		Key: []byte(post.UserName),
 		Value: []byte(post.Content),
 	}
 
