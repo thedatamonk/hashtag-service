@@ -118,6 +118,9 @@ func publishPostEvent(post Post) {
 func main() {
 	initDB()
 	initKafka()
+	go workers.StartWorker(hashtagDB)
+
+	// is the publishPostHandler function running everything inside it synchronously
 	http.HandleFunc("/posts/publish", publishPostHandler)
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
