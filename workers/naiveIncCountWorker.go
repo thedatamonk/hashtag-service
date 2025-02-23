@@ -5,6 +5,7 @@ import (
 	"log"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/segmentio/kafka-go"
 	"go.mongodb.org/mongo-driver/bson"
@@ -37,6 +38,7 @@ func updateHashtagCounts(db *mongo.Database, hashTags []string) {
 	}
 
 	log.Printf("Successfully updated hashtag counts for %d hashtags\n", len(hashTags))
+
 }
 
 
@@ -53,6 +55,8 @@ func StartWorker(db *mongo.Database) {
 
 	// run the workers infinitely to keep listening of new messages
 	for {
+		start := time.Now()
+
 		msg, err := r.ReadMessage(context.TODO())
 		if err != nil {
 			log.Println("Failed to read message: ", err)
@@ -60,7 +64,11 @@ func StartWorker(db *mongo.Database) {
 		}
 
 		content := string(msg.Value)
+
 		hashtags := extractHashtags(content)
 		updateHashtagCounts(db, hashtags)
+		elapsed := time.Since(start)
+		log.Printf("Hashtag counter worker took %s to process all messages\n", elapsed)
 	}
+
 }

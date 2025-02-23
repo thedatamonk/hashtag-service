@@ -37,6 +37,8 @@ var postDB *mongo.Database
 var hashtagDB *mongo.Database
 
 func publishPostHandler(w http.ResponseWriter, r *http.Request) {
+	start := time.Now()
+
 	var post Post
 	err := json.NewDecoder(r.Body).Decode(&post)
 	if err != nil {
@@ -56,11 +58,15 @@ func publishPostHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// send publish post event to kafka
-	publishPostEvent(post)
+	// send publish post event to kafka in a separate go-routine
+	// to reduce the perceived time taken to publish the post
+	go publishPostEvent(post)
 
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(post)
+
+	elapsed := time.Since(start)
+	log.Printf("publishPostHandler took %s", elapsed)
 
 }
 
@@ -101,6 +107,7 @@ func initKafka() {
 }
 
 func publishPostEvent(post Post) {
+	start := time.Now()
 	msg := kafka.Message{
 		Key: []byte(post.ID.Hex()),
 		Value: []byte(post.Content),
@@ -112,6 +119,9 @@ func publishPostEvent(post Post) {
 	} else {
 		log.Println("Successfully published post event to Kafka")
 	}
+
+	elapsed := time.Since(start)
+	log.Printf("publishPostEvent took %s", elapsed)
 }
 
 	
