@@ -16,6 +16,8 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
+	"github.com/segmentio/kafka-go"
+	"github.com/thedatamonk/hashtag-service/workers"
 )
 
 // specify schema of documents in posts and hashtag db
@@ -45,7 +47,7 @@ func publishPostHandler(w http.ResponseWriter, r *http.Request) {
 	post.ID = primitive.NewObjectID()
 	post.CreatedAt = time.Now()
 
-	// create a colllection called posts inside postDB
+	// create a collection called posts inside postDB
 	collection := postDB.Collection("posts")
 	// insert the newly created post in the post colection
 	_, err = collection.InsertOne(context.TODO(), post)
@@ -53,6 +55,9 @@ func publishPostHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+
+	// send publish post event to kafka
+	publishPostEvent(post)
 
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(post)
@@ -84,15 +89,35 @@ func initDB() {
 	log.Println("hashtagDB:", hashtagDB.Name())
 }
 
-func initKafka() {
+var kafkaWriter *kafka.Writer
 
+func initKafka() {
+	// create a new kafka writer object to send kafka events to the specified topic
+	kafkaWriter = &kafka.Writer{
+		Addr: kafka.TCP("localhost:9092"),
+		Topic: "on_post_publish",
+		Balancer: &kafka.LeastBytes{},
+	}
 }
-// let's implement the post endpoint that will be triggered when the user publishes a post
+
+func publishPostEvent(post Post) {
+	msg := kafka.Message{
+		Key: []byte(post.ID.Hex()),
+		Value: []byte(post.Content),
+	}
+
+	err := kafkaWriter.WriteMessages(context.TODO(), msg)
+	if err != nil {
+		log.Println("Error publishing post event to Kafka:", err)
+	} else {
+		log.Println("Successfully published post event to Kafka")
+	}
+}
 
 	
 func main() {
 	initDB()
-
+	initKafka()
 	http.HandleFunc("/posts/publish", publishPostHandler)
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
