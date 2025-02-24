@@ -180,8 +180,21 @@ func main() {
 	} else if approach_type == "naive_local_batching" {
 		log.Printf("Approach Type: %s", approach_type)
 		go workers.StartLocalCopyBatchingWorker(hashtagDB)
+	
+	} else if approach_type == "optimised_deep_copy" {
+		log.Printf("Approach Type: %s", approach_type)
+		go workers.StartDeepCopyWorker(hashtagDB)
+		
+	} else if approach_type == "optimised_two_copies" {
+		log.Printf("Approach Type: %s", approach_type)
+		go workers.StartTwoCopiesWorker(hashtagDB)
+
+	} else if approach_type == "optimised_two_brokers" {
+		log.Printf("Approach Type: %s", approach_type)
+		go workers.StartLocalCopyBatchingWorker(hashtagDB)
+
 	} else {
-		log.Printf("Unknown approach!!!")
+		log.Fatalf("Unknown approach type: %s", approach_type)
 	}
 
 	http.HandleFunc("/posts/publish", publishPostHandler)
