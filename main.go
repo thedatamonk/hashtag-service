@@ -7,6 +7,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"flag"
 	"log"
 	"net/http"
 	"time"
@@ -17,6 +18,8 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
+
+
 
 // specify schema of documents in posts and hashtag db
 type Post struct {
@@ -76,7 +79,6 @@ func publishPostHandler(w http.ResponseWriter, r *http.Request) {
 // Approach 2: we will locally keep a copy of the counters of each tag
 // and only after a certain time will write it to mongodb
 // a local copy can be kept in a hashmap
-
 
 
 // Approach 3: in this approach, we will create a deep copy of the hashmap
@@ -154,13 +156,34 @@ func publishPostEvent(post Post) {
 	log.Printf("publishPostEvent took %s", elapsed)
 }
 
+
+var approach_type string
+
+func init() {
+	flag.StringVar(&approach_type, "approach-type", "naive", "Type of approach to apply for incrementing hashtag counter")
+}
 	
 func main() {
+	// parse command line arguments
+	flag.Parse()
+
+	// initialise MongoDB and Kafka
 	initDB()
 	initKafka()
-	go workers.StartWorker(hashtagDB)
 
-	// is the publishPostHandler function running everything inside it synchronously
+	// depending upon the approach type, start the corresponding worker
+
+	if approach_type == "naive" {
+		log.Printf("Approach Type: %s", approach_type)
+		go workers.StartNaiveIncrementWorker(hashtagDB)
+
+	} else if approach_type == "naive_local_batching" {
+		log.Printf("Approach Type: %s", approach_type)
+		go workers.StartLocalCopyBatchingWorker(hashtagDB)
+	} else {
+		log.Printf("Unknown approach!!!")
+	}
+
 	http.HandleFunc("/posts/publish", publishPostHandler)
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
