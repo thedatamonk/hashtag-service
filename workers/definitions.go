@@ -64,7 +64,10 @@ func bulkUpdateHashtagCounts(db *mongo.Database, hashTagsMapper map[string]int) 
 	_, err := collection.BulkWrite(ctx, models, bulkOptions)
 	if err != nil {
 		log.Printf("Failed to update hashtag counts in bulk: %s\n", err)
+	} else {
+		log.Printf("Successfully updated hashtag counts in bulk.")
 	}
+
 }
 
 func StartNaiveIncrementWorker(db *mongo.Database) {
