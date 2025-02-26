@@ -249,8 +249,10 @@ func StartDeepCopyWorker(db *mongo.Database) {
 			// TODO: Acquire a lock
 			// TODO: Release a lock
 			////////////////////
+			tag_counter.mu.Lock()
 			copy_tag_counter := createDeepCopy(tag_counter.counts)
 			tag_counter.Reset()
+			tag_counter.mu.Unlock()
 			///////////////////
 			go bulkUpdateHashtagCounts(db, copy_tag_counter)
 		}
