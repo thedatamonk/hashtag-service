@@ -264,6 +264,75 @@ func StartDeepCopyWorker(db *mongo.Database) {
 
 
 func StartTwoCopiesWorker(db *mongo.Database) {
+	// create a kafka reader object
+	r := kafka.NewReader(kafka.ReaderConfig{
+		Brokers: []string{"localhost:9092"},
+		Topic: "on_post_publish",
+		GroupID: "hashtag-counter",
+	})
+
+	// initialise tag counter mapper
+	batchSize := 10
+	active_tag_counter := NewTagCounter(batchSize)
+	passive_tag_counter := NewTagCounter(batchSize)
+	num_processed_messages := 0
+
+	// each kafka reader will listen indefinitely for new messages
+	for {
+		start := time.Now()
+
+		// read the message from the kafka topic
+		msg, err := r.ReadMessage(context.TODO())
+
+		
+		if err != nil {
+			log.Println("Failed to read message: ", err)
+			continue
+		}
+
+		// increment the number of processed messages
+		num_processed_messages++
+		log.Printf("# of messages processed so far: %d\n", num_processed_messages)
+
+		// extract hashtags from the content of the post
+		content := string(msg.Value)
+		hashtags := extractHashtags(content)
+
+		// iterate over the hashtags and increment the counter in active_tag_counter
+		for _, tag := range hashtags {
+			active_tag_counter.Increment(tag)
+		}
+
+		if num_processed_messages >= batchSize {
+			// When the "active bucket" AKA active_tag_counter is full (total capacity == batchSize)
+			// then we have to swap the active and passive buckets
+
+			// ---------- CRITICAL SECTION ------------ //
+
+			active_tag_counter.mu.Lock()
+
+			active_tag_counter, passive_tag_counter = passive_tag_counter, active_tag_counter
+
+			active_tag_counter.Reset()
+
+			passive_tag_counter.mu.Unlock()
+			// ---------- CRITICAL SECTION ------------ //
+
+			// Write the counts from the passive tag counter (which now points to active tag counter address)
+			// this should happen in a new goroutine so that the consumption of the messages
+			// from the kafka queue is not blocked
+			
+			go bulkUpdateHashtagCounts(db, passive_tag_counter.counts)
+
+			// reset the number of processed messages
+			num_processed_messages = 0
+		}
+
+		elapsed := time.Since(start)
+		log.Printf("Hashtag counter worker took %s to process all messages\n", elapsed)
+
+	}
+
 }
 
 // we will not need any worker here
