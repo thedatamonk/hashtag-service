@@ -153,20 +153,21 @@ func StartLocalCopyBatchingWorker(db *mongo.Database) {
 	// initialise tag counter mapper
 	batchSize := 10
 	tag_counter := NewTagCounter(batchSize)
-	currCounter := 0
+	num_processed_messages := 0
 	// run the workers infinitely to keep listening of new messages
 	for {
 		start := time.Now()
 
 		// read the message from the kafka topic
 		msg, err := r.ReadMessage(context.TODO())
-		currCounter++
-		log.Printf("Current # of messages procesed: %d", currCounter)
 
 		if err != nil {
 			log.Println("Failed to read message: ", err)
 			continue
 		}
+
+		num_processed_messages++
+		log.Printf("Current # of messages procesed: %d", num_processed_messages)
 
 		// we will still have to extract hashtags from the content of each post
 		content := string(msg.Value)
@@ -177,9 +178,9 @@ func StartLocalCopyBatchingWorker(db *mongo.Database) {
 			tag_counter.Increment(tag)
 		}
 
-		if currCounter >= batchSize {
-			log.Printf("Batch size reached. Writing to DB. %d\n", currCounter)
-			currCounter = 0
+		if num_processed_messages >= batchSize {
+			log.Printf("Batch size reached. Writing to DB. %d\n", num_processed_messages)
+			num_processed_messages = 0
 			// if the number of hashtags in the tag_counter is greater than the batch size
 			// then we will update the counts in the database
 			// we will reset the tag_counter after updating the counts
@@ -210,20 +211,21 @@ func StartDeepCopyWorker(db *mongo.Database) {
 	// initialise tag counter mapper
 	batchSize := 10
 	tag_counter := NewTagCounter(batchSize)
-	currCounter := 0
+	num_processed_messages := 0
 	// run the workers infinitely to keep listening of new messages
 	for {
 		start := time.Now()
 
 		// read the message from the kafka topic
 		msg, err := r.ReadMessage(context.TODO())
-		currCounter++
-		log.Printf("Current # of messages procesed: %d", currCounter)
 
 		if err != nil {
 			log.Println("Failed to read message: ", err)
 			continue
 		}
+
+		num_processed_messages++
+		log.Printf("Current # of messages procesed: %d", num_processed_messages)
 
 		// we will still have to extract hashtags from the content of each post
 		content := string(msg.Value)
@@ -234,29 +236,25 @@ func StartDeepCopyWorker(db *mongo.Database) {
 			tag_counter.Increment(tag)
 		}
 
-		if currCounter >= batchSize {
-			log.Printf("Batch size reached. Writing to DB. %d\n", currCounter)
-			currCounter = 0
+		if num_processed_messages >= batchSize {
+			log.Printf("Batch size reached. Writing to DB. %d\n", num_processed_messages)
+			num_processed_messages = 0
 			// if the number of hashtags in the tag_counter is greater than the batch size
 			// then we will update the counts in the database
 			// we will reset the tag_counter after updating the counts
 
 			// iterate over all tags and their counts in the tag_counter
 			// and update the counts in the database
-			// we need to improve this
-			// as this is a blocking oepration
-			// unless we spin up another thread
 			// create a deep copy of the tag counter counts object
 			// and then spin up another thread to write to the database
 			
-			// TODO: Acquire a lock
-			// TODO: Release a lock
-			////////////////////
+			// ---------- CRITICAL SECTION ------------ //
 			tag_counter.mu.Lock()
 			copy_tag_counter := createDeepCopy(tag_counter.counts)
 			tag_counter.Reset()
 			tag_counter.mu.Unlock()
-			///////////////////
+			// ---------- CRITICAL SECTION ------------ //
+			
 			go bulkUpdateHashtagCounts(db, copy_tag_counter)
 		}
 		elapsed := time.Since(start)
