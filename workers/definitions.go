@@ -70,6 +70,7 @@ func bulkUpdateHashtagCounts(db *mongo.Database, hashTagsMapper map[string]int) 
 
 }
 
+
 func StartNaiveIncrementWorker(db *mongo.Database) {
 	// main function that will be called by the main thread to start the workers in a
 	// separate thread
@@ -100,8 +101,6 @@ func StartNaiveIncrementWorker(db *mongo.Database) {
 	}
 
 }
-
-
 
 type TagCounter struct {
 	mu sync.Mutex
@@ -262,7 +261,6 @@ func StartDeepCopyWorker(db *mongo.Database) {
 	}
 }
 
-
 func StartTwoCopiesWorker(db *mongo.Database) {
 	// create a kafka reader object
 	r := kafka.NewReader(kafka.ReaderConfig{
@@ -335,7 +333,3 @@ func StartTwoCopiesWorker(db *mongo.Database) {
 
 }
 
-// we will not need any worker here
-// this will be a completely different approach
-func StartTwoBrokers(db *mongo.Database) {
-}
