@@ -217,7 +217,7 @@ func StartDeepCopyWorker(db *mongo.Database) {
 
 		// read the message from the kafka topic
 		msg, err := r.ReadMessage(context.TODO())
-
+		
 		if err != nil {
 			log.Println("Failed to read message: ", err)
 			continue
