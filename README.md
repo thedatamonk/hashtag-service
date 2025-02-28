@@ -1,4 +1,4 @@
-Design the HashTag Service
+# Design the HashTag Service
 
 ## All possible approaches
 
